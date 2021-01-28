@@ -21,7 +21,7 @@ def write_json(fname, json_dict):
         json.dump(json_dict, file, ensure_ascii=False, indent=4)
 
 def play_sound(sound):
-    sound_chanel.play(pygame.mixer.Sound('sounds/' + sound + '.ogg'))
+    sound_chanel.play(pygame.mixer.Sound('appData/sounds/' + sound + '.ogg'))
 
 
 
@@ -77,7 +77,7 @@ class BrokeAnimation(Animation):
 
 class MainMenu(Page):
     def __init__(self, size):
-        background = pygame.image.load('images/main_menu_background.png')
+        background = pygame.image.load('appData/images/main_menu_background.png')
         
         super().__init__('MainMenu', size, background_image=background)
         
@@ -96,11 +96,14 @@ class MainMenu(Page):
 class OptionsMenu(Page):
     def __init__(self, size):
         super().__init__('OptionsMenu', size)
-        self.background = pygame.image.load('images/options_menu_background.png')
+        self.background = pygame.image.load('appData/images/options_menu_background.png')
 
         self.music_vol = Slider(self, (size[0]//2, int(size[1]*0.40)), default_value=0.3)
         self.sound_vol = Slider(self, (size[0]//2, int(size[1]*0.54)), default_value=0.8)
         Button(self, (size[0]//2, int(size[1]*0.74)), 'Voltar', partial(self.change_page, 'MainMenu'))
+
+        self.load_settings()
+        self.save_settings()
 
     def start(self):
         self.load_settings()
@@ -321,7 +324,7 @@ class NextPieceView(Object):
         self.set_surfs()
 
     def set_surfs(self):
-        self.square_surfs = [pygame.image.load('images/square-%d.png'%i)
+        self.square_surfs = [pygame.image.load('appData/images/square-%d.png'%i)
                 for i in range(1, 8)]
         size = self.square_size + self.square_board
         #for surf in self.square_surfs:
@@ -396,7 +399,7 @@ class TetrisTable(Frame):
         self.set_surfs()
 
     def set_surfs(self):
-        self.square_surfs = [pygame.image.load('images/square-%d.png'%i)
+        self.square_surfs = [pygame.image.load('appData/images/square-%d.png'%i)
                 for i in range(1, 8)]
         size = self.square_size + self.square_board
         #for surf in self.square_surfs:
@@ -428,7 +431,7 @@ class TetrisTable(Frame):
 class GamePage(Page):
     def __init__(self, size):
         super().__init__('GamePage', size)
-        self.background = pygame.image.load('images/background.png')
+        self.background = pygame.image.load('appData/images/background.png')
         self.square_size = 28
         self.square_board = 3
         self.game = Game()
@@ -445,7 +448,7 @@ class GamePage(Page):
             self.game.load_game()
         else:
             self.game.new_game()
-        pygame.mixer.music.load('sounds/music.mp3')
+        pygame.mixer.music.load('appData/sounds/music.mp3')
         pygame.mixer.music.play(loops=-1)
         self.game.paused = False
 
@@ -462,11 +465,10 @@ class GamePage(Page):
         self.draw()
 
 
+
 sc_width = 507
 sc_height = 619
 sc_size = (sc_width, sc_height)
-
-
 
 
 screen = pygame.display.set_mode((sc_width, sc_height))

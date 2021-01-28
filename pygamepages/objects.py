@@ -133,7 +133,7 @@ class Page(Frame):
         pass
 
     def loop(self):
-        pass
+        self.draw()
 
 
 class Label(Object):

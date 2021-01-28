@@ -24,10 +24,9 @@ def play_sound(sound):
     sound_chanel.play(pygame.mixer.Sound('appData/sounds/' + sound + '.ogg'))
 
 
-
-class Animation(Object):
-    def __init__(self, end_frame, source, size, pos, **kw):
-        super().__init__(source, size, pos, **kw)
+"""
+class Animation:
+    def __init__(self, end_frame):
         self.end_frame = end_frame        
         self.current_frame = 0
         self.animate = False
@@ -47,6 +46,53 @@ class Animation(Object):
             self.draw()
             if self.current_frame == self.end_frame:
                 self.animate = False
+                self.end()
+            else:
+                self.current_frame += 1
+
+class BrokeAnimation(Animation):
+    def __init__(self, source, square_size, square_board):
+        super().__init__(15)
+        self.source = source
+        self.square_size = square_size
+        self.off_set = square_board//2
+        self.detach_surf = pygame.Surface((10*square_size, square_size + self.off_set))
+        self.detach_surf.fill((255,255,255))
+        #self.sound = pygame.Sound('sounds/ogg/line-remove.ogg')
+        self.alpha_values = [20, 60, 150, 200, 250]
+        self.rows = []
+    
+    def start(self, rows):
+        super().start()
+        self.rows = rows
+
+    def draw(self):
+        self.detach_surf.set_alpha(self.alpha_values[self.current_frame%5])
+        for row in self.rows:
+            self.source.blit(self.detach_surf, (0, self.square_size*row + self.off_set))
+"""
+
+class Animation(Object):
+    def __init__(self, end_frame, source, size, pos, **kw):
+        super().__init__(source, size, pos, **kw)
+        self.end_frame = end_frame        
+        self.current_frame = 0
+        self.active = False
+    
+    def start(self):
+        self.current_frame = 0
+        self.active = True
+    
+    def end(self):
+        pass
+
+    def draw(self):
+        pass
+    
+    def update(self):
+        if self.active:
+            if self.current_frame == self.end_frame:
+                self.active = False
                 self.end()
             else:
                 self.current_frame += 1
@@ -75,6 +121,54 @@ class BrokeAnimation(Animation):
             self.surf.blit(self.detach_surf, (0, self.square_size*row + self.off_set))
 
 
+class GameOverAnimation(Animation):
+    def __init__(self, source, size, square_size, square_board):
+        super().__init__(100, source, size, (0,0))
+        self.source = source
+        self.square_size = square_size
+        self.square_surf = pygame.image.load('appData/images/square-8.png')
+
+    def start(self):
+        super().start()
+        pygame.mixer.music.load('appData/sounds/others/gameover.mp3')
+        pygame.mixer.music.play()
+
+    def draw(self):
+        self.draw_background()
+        limits = [[1,18],[0,9]]
+        direction = [(0,1), (0,-1)]
+        pos = [[0,0], [19,9]]
+
+        for pos_i in pos:
+            row, column = pos_i
+            self.surf.blit(self.square_surf, (self.square_size*column, self.square_size*row))
+
+        for _ in range(0, self. current_frame):
+            for i in range(2):
+                if direction[i][0] != 0:
+                    if direction[i][0] == 1:
+                        if pos[i][0] == limits[0][1]:
+                            direction[i] = (0,-1)
+                            limits[0][1] -= 1
+                    elif direction[i][0] == -1:
+                        if pos[i][0] == limits[0][0]:
+                            direction[i] = (0,1)
+                            limits[0][0] += 1
+                else:
+                    if direction[i][1] == 1:
+                        if pos[i][1] == limits[1][1]:
+                            direction[i] = (1,0)
+                            limits[1][1] -= 1
+                    elif direction[i][1] == -1:
+                        if pos[i][1] == limits[1][0]:
+                            direction[i] = (-1,0)
+                            limits[1][0] += 1
+            
+                pos[i] = [pos[i][0]+direction[i][0], pos[i][1]+direction[i][1]]
+                row, column = pos[i]
+                self.surf.blit(self.square_surf, (self.square_size*column, self.square_size*row))
+
+
 class MainMenu(Page):
     def __init__(self, size):
         background = pygame.image.load('appData/images/main_menu_background.png')
@@ -98,8 +192,8 @@ class OptionsMenu(Page):
         super().__init__('OptionsMenu', size)
         self.background = pygame.image.load('appData/images/options_menu_background.png')
 
-        self.music_vol = Slider(self, (size[0]//2, int(size[1]*0.40)), default_value=0.3)
-        self.sound_vol = Slider(self, (size[0]//2, int(size[1]*0.54)), default_value=0.8)
+        self.music_vol = Slider(self, (size[0]//2, int(size[1]*0.40)), default_value=0.2)
+        self.sound_vol = Slider(self, (size[0]//2, int(size[1]*0.54)), default_value=0.6)
         Button(self, (size[0]//2, int(size[1]*0.74)), 'Voltar', partial(self.change_page, 'MainMenu'))
 
         self.load_settings()
@@ -146,6 +240,7 @@ class Game:
         self.complete_rows = []
         self.left_input = 0
         self.right_input = 0
+        self.game_over = False
     
     def verify_complete_rows(self):
         self.complete_rows = []
@@ -184,6 +279,7 @@ class Game:
         self.current_piece = self.generate_piece()
         self.next_piece = self.generate_piece()
         self.pts = 0
+        self.game_over = False
 
     def save_game(self):
         current_piece = {
@@ -292,6 +388,9 @@ class Game:
 
     def loop(self):
         self.level = 1 + self.pts//1000
+        if self.top < 2 and not self.game_over:
+            self.game_over_animation.start()
+            self.game_over = True
         if len(self.complete_rows) == 0 and self.top > 1 and not self.paused:
             self.frame_count = (self.frame_count + 1)%360360
             if self.frame_count%self.falling_speed == 0:
@@ -395,6 +494,9 @@ class TetrisTable(Frame):
         self.square_board = square_board
         self.game.broke_animation = BrokeAnimation(self, self.size, square_size, square_board)
         self.game.broke_animation.end = self.game.clean_complete_rows
+        self.game.game_over_animation = GameOverAnimation(self, self.size, square_size, square_board)
+        self.game.game_over_animation.end = self.game_over
+
 
         self.set_surfs()
 
@@ -411,6 +513,10 @@ class TetrisTable(Frame):
             i, j = pos
             self.surf.blit(square_surf, (self.square_size*i, self.square_size*j))
 
+    def game_over(self):
+        self.game.new_game()
+        PageManager.change_page('RecordPage')
+
     def draw_table(self):
         for i in range(self.game.top, self.game.height):
             for j in range(self.game.width):
@@ -420,11 +526,13 @@ class TetrisTable(Frame):
                     self.surf.blit(square_surf, (self.square_size*j, self.square_size*i))
 
     def draw(self):
+        self.game.broke_animation.update()
+        self.game.game_over_animation.update()
         self.draw_background()
         #self.surf.blit(self.background, (0,0))
         self.draw_piece(self.game.current_piece)
         self.draw_table()
-        self.game.broke_animation.update()
+        
         self.draw_objects()
 
 
@@ -465,6 +573,13 @@ class GamePage(Page):
         self.draw()
 
 
+class RecordPage(Page):
+    def __init__(self, size):
+        super().__init__('RecordPage', size, background_color=(255,255,255,255))
+
+        self.but_menu = Button(self, (self.size[0]//2, self.size[1]//2), 'Menu',
+                partial(self.change_page, 'MainMenu'))
+
 
 sc_width = 507
 sc_height = 619
@@ -478,6 +593,7 @@ PageManager.set_surf(screen)
 MainMenu(sc_size)
 OptionsMenu(sc_size)
 GamePage(sc_size)
+RecordPage(sc_size)
 PageManager.set_start_page('MainMenu')
 exit = False
 
@@ -487,10 +603,11 @@ while exit == False:
             exit = True
         PageManager.event_handler(event)
         
-    
     PageManager.loop()
     
     clock.tick(30)
     pygame.display.update()
 
 pygame.quit()
+
+a = [(0,0), (0,9), (19,9), (19,0), (1,0), (1,8), (18,8), (18,1), (2,1), (2,7), (17,7)]

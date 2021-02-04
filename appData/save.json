@@ -244,10 +244,10 @@
     "top": 20,
     "pts": 0,
     "current_piece": {
-        "color": 1,
+        "color": 3,
         "column": 5,
         "row": 1,
         "orientation": 0
     },
-    "next_piece_color": 2
+    "next_piece_color": 1
 }

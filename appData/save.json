@@ -222,8 +222,8 @@
             0,
             0,
             0,
-            7,
-            7,
+            0,
+            0,
             0,
             0,
             0
@@ -231,23 +231,23 @@
         [
             0,
             0,
-            7,
-            7,
             0,
-            3,
-            7,
-            7,
-            6,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
             0
         ]
     ],
-    "top": 18,
-    "pts": 274,
+    "top": 20,
+    "pts": 0,
     "current_piece": {
-        "color": 7,
+        "color": 1,
         "column": 5,
-        "row": 8,
+        "row": 1,
         "orientation": 0
     },
-    "next_piece_color": 6
+    "next_piece_color": 2
 }

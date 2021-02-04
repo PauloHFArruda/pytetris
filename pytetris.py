@@ -82,7 +82,7 @@ class GameStartAnimation(Animation):
     
     def draw(self):
         self.draw_background()
-        text = self.font.render(str(1 + self.current_frame//30), True, (0,0,0))
+        text = self.font.render(str(3 - self.current_frame//31), True, (0,0,0))
         text_size = text.get_size()
         pos = ((self.size[0] - text_size[0])//2, (self.size[1] - text_size[1])//2)
         self.surf.blit(text, pos)
@@ -155,8 +155,10 @@ class OptionsMenu(Page):
         super().__init__('OptionsMenu', size)
         self.background = pygame.image.load('appData/images/options_menu_background.png')
 
-        self.music_vol = Slider(self, (size[0]//2, int(size[1]*0.40)), default_value=0.2)
-        self.sound_vol = Slider(self, (size[0]//2, int(size[1]*0.54)), default_value=0.6)
+        Label(self, (int(size[0]*0.38), int(size[1]*0.40)), 'Musica:')
+        Label(self, (int(size[0]*0.38), int(size[1]*0.54)), 'Efeitos:')
+        self.music_vol = Slider(self, (int(size[0]*0.62), int(size[1]*0.40)), default_value=0.2)
+        self.sound_vol = Slider(self, (int(size[0]*0.62), int(size[1]*0.54)), default_value=0.6)
         Button(self, (size[0]//2, int(size[1]*0.74)), 'Voltar', partial(self.change_page, 'MainMenu'))
 
         try:
@@ -194,13 +196,12 @@ class Game:
 
         self.paused = True
         self.falling_speed = 15
-        self.level = 1
-        self.pts = 0
         self.frame_count = 0
         self.complete_rows = []
         self.left_input = 0
         self.right_input = 0
-        self.game_over = False
+
+        self.new_game()
     
     def verify_complete_rows(self):
         self.complete_rows = []
@@ -239,6 +240,7 @@ class Game:
         self.current_piece = self.generate_piece()
         self.next_piece = self.generate_piece()
         self.pts = 0
+        self.level = 1
         self.game_over = False
 
     def save_game(self):
@@ -556,7 +558,7 @@ sc_size = (sc_width, sc_height)
 
 
 screen = pygame.display.set_mode((sc_width, sc_height))
-pygame.display.set_caption('Tetris')
+pygame.display.set_caption('pyTetris')
 clock = pygame.time.Clock()
 
 game = Game()

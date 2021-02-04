@@ -24,54 +24,6 @@ def play_sound(sound):
     sound_chanel.play(pygame.mixer.Sound('appData/sounds/' + sound + '.ogg'))
 
 
-"""
-class Animation:
-    def __init__(self, end_frame):
-        self.end_frame = end_frame        
-        self.current_frame = 0
-        self.animate = False
-    
-    def start(self):
-        self.current_frame = 0
-        self.animate = True
-    
-    def end(self):
-        pass
-
-    def draw(self):
-        pass
-    
-    def update(self):
-        if self.animate:
-            self.draw()
-            if self.current_frame == self.end_frame:
-                self.animate = False
-                self.end()
-            else:
-                self.current_frame += 1
-
-class BrokeAnimation(Animation):
-    def __init__(self, source, square_size, square_board):
-        super().__init__(15)
-        self.source = source
-        self.square_size = square_size
-        self.off_set = square_board//2
-        self.detach_surf = pygame.Surface((10*square_size, square_size + self.off_set))
-        self.detach_surf.fill((255,255,255))
-        #self.sound = pygame.Sound('sounds/ogg/line-remove.ogg')
-        self.alpha_values = [20, 60, 150, 200, 250]
-        self.rows = []
-    
-    def start(self, rows):
-        super().start()
-        self.rows = rows
-
-    def draw(self):
-        self.detach_surf.set_alpha(self.alpha_values[self.current_frame%5])
-        for row in self.rows:
-            self.source.blit(self.detach_surf, (0, self.square_size*row + self.off_set))
-"""
-
 class Animation(Object):
     def __init__(self, end_frame, source, size, pos, **kw):
         super().__init__(source, size, pos, **kw)
@@ -112,6 +64,7 @@ class BrokeAnimation(Animation):
     def start(self, rows):
         super().start()
         self.rows = rows
+        play_sound('line-remove')
 
 
     def draw(self):
@@ -119,6 +72,20 @@ class BrokeAnimation(Animation):
         self.detach_surf.set_alpha(self.alpha_values[self.current_frame%5])
         for row in self.rows:
             self.surf.blit(self.detach_surf, (0, self.square_size*row + self.off_set))
+
+
+class GameStartAnimation(Animation):
+    def __init__(self, source, size, square_board):
+        size = (size[0]-2*square_board, size[1]-2*square_board)
+        super().__init__(90, source, size, (square_board, square_board), background_color=(255,255,255,255))
+        self.font = pygame.font.SysFont('Arial', 40)
+    
+    def draw(self):
+        self.draw_background()
+        text = self.font.render(str(1 + self.current_frame//30), True, (0,0,0))
+        text_size = text.get_size()
+        pos = ((self.size[0] - text_size[0])//2, (self.size[1] - text_size[1])//2)
+        self.surf.blit(text, pos)
 
 
 class GameOverAnimation(Animation):
@@ -181,10 +148,6 @@ class MainMenu(Page):
                 'New game', partial(self.change_page, 'GamePage', load=False))
         self.but_options = Button(self, (size[0]//2, int(size[1]*0.70)), 
                 'Options', partial(self.change_page, 'OptionsMenu'))
-    
-    def loop(self):
-        #self.source.fill(255,255,255)         
-        self.draw()
 
 
 class OptionsMenu(Page):
@@ -196,34 +159,30 @@ class OptionsMenu(Page):
         self.sound_vol = Slider(self, (size[0]//2, int(size[1]*0.54)), default_value=0.6)
         Button(self, (size[0]//2, int(size[1]*0.74)), 'Voltar', partial(self.change_page, 'MainMenu'))
 
-        self.load_settings()
-        self.save_settings()
-
-    def start(self):
-        self.load_settings()
-
-    def load_settings(self):
         try:
-            settings = read_json('settings.json')
-            self.music_vol.value = settings['music_vol']
-            self.sound_vol.value = settings['sound_vol']
+            self.load_settings()
         except:
-            self.save_settings()
+            pass
+        
+        pygame.mixer.music.set_volume(self.music_vol.value*0.6)
+        sound_chanel.set_volume(self.sound_vol.value*0.8)
+        
+    def load_settings(self):
+        settings = read_json('appData/settings.json')
+        self.music_vol.value = settings['music_vol']
+        self.sound_vol.value = settings['sound_vol']
 
     def save_settings(self):
         settings = {
             'music_vol': self.music_vol.value,
             'sound_vol': self.sound_vol.value
         }
-        write_json('settings.json', settings)
+        write_json('appData/settings.json', settings)
 
-    def close(self):
-        pygame.mixer.music.set_volume(self.music_vol.value)
-        sound_chanel.set_volume(self.sound_vol.value)
+    def on_close(self):
+        pygame.mixer.music.set_volume(self.music_vol.value*0.6)
+        sound_chanel.set_volume(self.sound_vol.value*0.8)
         self.save_settings()
-
-    def loop(self):           
-        self.draw()
 
 
 class Game:
@@ -236,6 +195,7 @@ class Game:
         self.paused = True
         self.falling_speed = 15
         self.level = 1
+        self.pts = 0
         self.frame_count = 0
         self.complete_rows = []
         self.left_input = 0
@@ -295,21 +255,20 @@ class Game:
             'current_piece': current_piece,
             'next_piece_color': self.next_piece.color
         }
-        write_json('save.json', save)
+        write_json('appData/save.json', save)
 
     def load_game(self):
-        try:
-            save = read_json('save.json')
-            self.table = save['table']
-            self.top = save['top']
-            self.pts = save['pts']
-            self.current_piece = self.pieces[save['current_piece']['color']-1]()
-            self.current_piece.column = save['current_piece']['column']
-            self.current_piece.row = save['current_piece']['row']
-            self.current_piece.orientation = save['current_piece']['orientation']
-            self.next_piece = self.pieces[save['next_piece_color']-1]()
-        except:
-            self.new_game()
+        save = read_json('appData/save.json')
+        self.table = save['table']
+        self.top = save['top']
+        self.pts = save['pts']
+        self.current_piece = self.pieces[save['current_piece']['color']-1]()
+        self.current_piece.column = save['current_piece']['column']
+        self.current_piece.row = save['current_piece']['row']
+        self.current_piece.orientation = save['current_piece']['orientation']
+        self.next_piece = self.pieces[save['next_piece_color']-1]()
+        self.level = 1 + self.pts//10000
+        self.falling_speed = 16 - self.level
 
     def collided(self):
         for pos in self.current_piece.body():
@@ -363,8 +322,21 @@ class Game:
             if i < self.top:
                 self.top = i
 
-    def make_moves():
-        pass
+    def make_moves(self):
+        if self.frame_count%self.falling_speed == 0:
+            self.move_down()
+        if self.left_input > 0:
+            if self.left_input == 1:
+                self.move_side(-1)
+            if self.left_input > 5 and (self.left_input-5)%3 == 0:
+                self.move_side(-1)
+            self.left_input += 1
+        if self.right_input > 0:
+            if self.right_input == 1:
+                self.move_side(1)
+            if self.right_input > 5 and (self.right_input-5)%3 == 0:
+                self.move_side(1)
+            self.right_input += 1
         
     def event_handler(self, event):
         if event.type == pygame.KEYDOWN:
@@ -376,8 +348,6 @@ class Game:
                 self.right_input = 1
             if event.key == pygame.K_LEFT:
                 self.left_input = 1
-            if event.key == pygame.K_p:
-                self.paused = not self.paused
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_DOWN:
                 self.falling_speed = 16-self.level
@@ -388,29 +358,12 @@ class Game:
 
     def loop(self):
         self.level = 1 + self.pts//1000
-        if self.top < 2 and not self.game_over:
-            self.game_over_animation.start()
+        self.frame_count = (self.frame_count + 1)%360360
+        if self.top < 2:
             self.game_over = True
-        if len(self.complete_rows) == 0 and self.top > 1 and not self.paused:
-            self.frame_count = (self.frame_count + 1)%360360
-            if self.frame_count%self.falling_speed == 0:
-                self.move_down()
-            if self.left_input > 0:
-                if self.left_input == 1:
-                    self.move_side(-1)
-                if self.left_input > 5 and (self.left_input-5)%3 == 0:
-                    self.move_side(-1)
-                self.left_input += 1
-            if self.right_input > 0:
-                if self.right_input == 1:
-                    self.move_side(1)
-                if self.right_input > 5 and (self.right_input-5)%3 == 0:
-                    self.move_side(1)
-                self.right_input += 1
+        elif len(self.complete_rows) == 0 and not self.paused:
+            self.make_moves()
             self.verify_complete_rows()
-            if self.complete_rows:
-                self.broke_animation.start(self.complete_rows)
-                play_sound('line-remove')
 
 
 class NextPieceView(Object):
@@ -460,12 +413,11 @@ class NextPieceView(Object):
 
 
 class GameInfo(Frame):
-    def __init__(self, source, game, square_size, square_board):
+    def __init__(self, source, square_size, square_board):
         size = (square_size*7 + square_board, square_size*16)
         pos = (square_size*11, square_size)
         super().__init__(source, size, pos)
 
-        self.game = game
         font_primary = int(1.7*square_size)
         font_secondary = int(0.7*square_size)
         x_pos = self.size[0]//2
@@ -477,25 +429,26 @@ class GameInfo(Frame):
         self.next_piece_view = NextPieceView(self, (x_pos, int(11.5*square_size)), square_size, square_board)
 
     def update(self):
-        self.lb_pts.config(text=str(self.game.pts))
-        self.lb_lvl.config(text=str(self.game.level))
-        self.next_piece_view.piece = self.game.next_piece
+        self.lb_pts.config(text=str(game.pts))
+        self.lb_lvl.config(text=str(game.level))
+        self.next_piece_view.piece = game.next_piece
 
 
 class TetrisTable(Frame):
-    def __init__(self, source, game, square_size, square_board):
+    def __init__(self, source, square_size, square_board):
         size = (square_size*game.width + 2*square_board, 
                 square_size*game.height + 2*square_board)
         pos = (square_size, square_size)
         super().__init__(source, size, pos)
 
-        self.game = game
         self.square_size = square_size
         self.square_board = square_board
-        self.game.broke_animation = BrokeAnimation(self, self.size, square_size, square_board)
-        self.game.broke_animation.end = self.game.clean_complete_rows
-        self.game.game_over_animation = GameOverAnimation(self, self.size, square_size, square_board)
-        self.game.game_over_animation.end = self.game_over
+        self.game_start_animation = GameStartAnimation(self, self.size, self.square_board)
+        self.game_start_animation.end = self.game_start
+        self.broke_animation = BrokeAnimation(self, self.size, square_size, square_board)
+        self.broke_animation.end = game.clean_complete_rows
+        self.game_over_animation = GameOverAnimation(self, self.size, square_size, square_board)
+        self.game_over_animation.end = self.game_over
 
 
         self.set_surfs()
@@ -513,24 +466,41 @@ class TetrisTable(Frame):
             i, j = pos
             self.surf.blit(square_surf, (self.square_size*i, self.square_size*j))
 
-    def game_over(self):
-        self.game.new_game()
+    @staticmethod
+    def game_start():
+        game.paused = False
+        pygame.mixer.music.load('appData/sounds/music.mp3')
+        pygame.mixer.music.play(loops=-1)
+
+    @staticmethod
+    def game_over():
+        game.new_game()
         PageManager.change_page('RecordPage')
 
     def draw_table(self):
-        for i in range(self.game.top, self.game.height):
-            for j in range(self.game.width):
-                value = self.game.table[i][j]
+        for i in range(game.top, game.height):
+            for j in range(game.width):
+                value = game.table[i][j]
                 if value > 0:
                     square_surf = self.square_surfs[value-1]
                     self.surf.blit(square_surf, (self.square_size*j, self.square_size*i))
 
+    def update(self):
+        self.broke_animation.update()
+        self.game_over_animation.update()
+        self.game_start_animation.update()
+
+        if game.paused and not self.game_start_animation.active:
+            self.game_start_animation.start()
+        if game.complete_rows and not self.broke_animation.active:
+            self.broke_animation.start(game.complete_rows)
+        if game.game_over and not self.game_over_animation.active:
+            self.game_over_animation.start()
+
     def draw(self):
-        self.game.broke_animation.update()
-        self.game.game_over_animation.update()
         self.draw_background()
         #self.surf.blit(self.background, (0,0))
-        self.draw_piece(self.game.current_piece)
+        self.draw_piece(game.current_piece)
         self.draw_table()
         
         self.draw_objects()
@@ -542,35 +512,34 @@ class GamePage(Page):
         self.background = pygame.image.load('appData/images/background.png')
         self.square_size = 28
         self.square_board = 3
-        self.game = Game()
-        self.bind(pygame.KEYDOWN, self.game.event_handler)
-        self.bind(pygame.KEYUP, self.game.event_handler)
+        self.bind(pygame.KEYDOWN, game.event_handler)
+        self.bind(pygame.KEYUP, game.event_handler)
 
-        self.tetris_table = TetrisTable(self, self.game, self.square_size, self.square_board)
-        self.game_info = GameInfo(self, self.game, self.square_size, self.square_board)
+        self.tetris_table = TetrisTable(self, self.square_size, self.square_board)
+        self.game_info = GameInfo(self, self.square_size, self.square_board)
         self.but_menu = Button(self, (14.5*self.square_size, 18*self.square_size), 'Menu', 
                 partial(self.change_page, 'MainMenu'), background_color=(255,255,255,255), font_size=20)
 
-    def start(self, *args, **kw):
+    def on_open(self, *args, **kw):
         if kw['load']:
-            self.game.load_game()
+            try:
+                game.load_game()
+            except:
+                game.new_game()
         else:
-            self.game.new_game()
-        pygame.mixer.music.load('appData/sounds/music.mp3')
-        pygame.mixer.music.play(loops=-1)
-        self.game.paused = False
+            game.new_game()
+        game.paused = True
 
-    def close(self):
+    def on_close(self):
         pygame.mixer.music.stop()
-        self.game.save_game()
+        game.save_game()
 
     def event_handler(self, event):
         self.game.event_handler(event)
 
-    def loop(self):
-        self.game.loop()
-        self.game_info.update()
-        self.draw()
+    def update(self):
+        game.loop()
+        self.update_objects()
 
 
 class RecordPage(Page):
@@ -589,18 +558,21 @@ sc_size = (sc_width, sc_height)
 screen = pygame.display.set_mode((sc_width, sc_height))
 pygame.display.set_caption('Tetris')
 clock = pygame.time.Clock()
+
+game = Game()
 PageManager.set_surf(screen)
 MainMenu(sc_size)
 OptionsMenu(sc_size)
 GamePage(sc_size)
 RecordPage(sc_size)
 PageManager.set_start_page('MainMenu')
-exit = False
+exit_game = False
 
-while exit == False:
+while not exit_game:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            exit = True
+            exit_game = True
+            game.save_game()
         PageManager.event_handler(event)
         
     PageManager.loop()
@@ -609,5 +581,3 @@ while exit == False:
     pygame.display.update()
 
 pygame.quit()
-
-a = [(0,0), (0,9), (19,9), (19,0), (1,0), (1,8), (18,8), (18,1), (2,1), (2,7), (17,7)]

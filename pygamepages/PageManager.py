@@ -13,16 +13,16 @@ def set_start_page(tag, *args, **kw):
     for page in _pages:
         if page.tag == tag:
             current_page = page
-            current_page.start(*args, **kw)
+            current_page.on_open(*args, **kw)
             return
 
 def change_page(tag, *args, **kw):
     global current_page
     for page in _pages:
         if page.tag == tag:
-            current_page.close()
+            current_page.on_close()
             current_page = page
-            current_page.start(*args, **kw)
+            current_page.on_open(*args, **kw)
             return
 
 def find_object(obj_id):
@@ -34,7 +34,8 @@ def find_object(obj_id):
     return obj
 
 def loop():
-    current_page.loop()
+    current_page.update()
+    current_page.draw()
 
 def bind(event_type, func, obj_id):
     page = _pages[int(obj_id.split('-')[0])]

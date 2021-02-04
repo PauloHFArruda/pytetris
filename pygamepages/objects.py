@@ -45,6 +45,9 @@ class Object:
         self.__setattrs(**kw)
         self.setup()
 
+    def update(self):
+        pass
+
     def draw_background(self):
         self.surf = self.background.copy()
 
@@ -86,6 +89,13 @@ class Frame(Object):
         for obj in self._objects:
             obj.draw()
             obj.place(self.surf)
+    
+    def update_objects(self):
+        for obj in self._objects:
+            obj.update()
+
+    def update(self):
+        self.update_objects()
 
     def draw(self):
         self.draw_background()
@@ -126,10 +136,10 @@ class Page(Frame):
         super().draw()
         self.place(self.source)
 
-    def start(self, *args, **kw):
+    def on_open(self, *args, **kw):
         pass
 
-    def close(self):
+    def on_close(self):
         pass
 
     def loop(self):
@@ -191,7 +201,7 @@ class Slider(Object):
         self.size = (self.width + 14, 24)
         super().setup()
     
-    def draw(self):
+    def update(self):
         if self._sliding:
             mouse_pos_x = pygame.mouse.get_pos()[0] - self.actual_pos[0] - 7
             if mouse_pos_x > self.width:
@@ -199,6 +209,8 @@ class Slider(Object):
             if mouse_pos_x < 0:
                 mouse_pos_x = 0
             self.value = mouse_pos_x/self.width
+
+    def draw(self):
         self.draw_background()
         self._rect_value.left = int(self.value*self.width)
         pygame.draw.rect(self.surf, (0,0,0), self._vertical_rect)
